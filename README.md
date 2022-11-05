@@ -3,7 +3,7 @@
 Node.js module for real time backup of files and directories.  
 This is a simple script to backup a directory to a sd card. Only works on Linux.
 
-Minmal version of node.js required: 10.0.0
+Version of node.js required: 10.0.0
 
 ## Example
 

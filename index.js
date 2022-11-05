@@ -39,7 +39,8 @@ const RealtimeBackup = {
       "dirMount",
       "projectDir"
     ].forEach((key) => {
-      if ([undefined, null].includes(realTimeBackupParams[key])) throw new Error(`Expected ${key} argument!`);
+      if ([undefined, null,].includes(realTimeBackupParams[key])
+        || (realTimeBackupParams[key] && realTimeBackupParams[key].trim().length === 0)) throw new Error(`Expected ${key} argument!`);
     })
 
     this.activeLog = realTimeBackupParams.activeLog
