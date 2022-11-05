@@ -3,16 +3,23 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "homepage": "https://github.com/laurentSavarit/realTimeBackup#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/laurentSavarit/realTimeBackup.git"
   },
-  "keywords": [],
-  "author": "",
+  "scripts": {},
+  "keywords": [
+    "Backup",
+    "SD",
+    "card",
+    "node",
+    "real",
+    "time"
+  ],
+  "author": "Laurent Savarit",
   "license": "ISC",
   "type": "commonjs",
-  "devDependencies": {
-    "@types/node": "^18.11.9"
-  },
   "dependencies": {
     "chokidar": "^3.5.3"
   }
