@@ -13,8 +13,9 @@ const RealtimeBackup = {
   MOUNT_POINT: `${this.DIR_POINT}/${this.MEDIA_NAME}`,
 
   mediaIsMount: false,
-  copyToBackup: true,
+  copyToBackup: false,
   firstCopyIsOk: false,
+  activeLog: false,
 
   /**
    * init config for realtime backup
@@ -22,7 +23,8 @@ const RealtimeBackup = {
    *  sdCardName: string;
    *  partitionName:string;
    *  dirMount:string;
-   *  projectDir:string
+   *  projectDir:string;
+   *  activeLog?:boolean
    * }} realTimeBackupParams 
    */
   init(realTimeBackupParams) {
@@ -40,28 +42,38 @@ const RealtimeBackup = {
       if ([undefined, null].includes(realTimeBackupParams[key])) throw new Error(`Expected ${key} argument!`);
     })
 
+    this.activeLog = realTimeBackupParams.activeLog
+
     this.MEDIA_NAME = realTimeBackupParams.sdCardName;
     this.PARTITION_NAME = realTimeBackupParams.partitionName;
     this.DIR_POINT = realTimeBackupParams.dirMount;
     this.APP_DIR = realTimeBackupParams.projectDir;
     this.ORIGIN_PROJECT_DIR = this.APP_DIR.split("/").reverse().slice(1).reverse().join("/");
     this.MOUNT_POINT = `${this.DIR_POINT}/${this.MEDIA_NAME}`;
-    console.log(this.ORIGIN_PROJECT_DIR);
+    this.log(this.ORIGIN_PROJECT_DIR);
 
-    return { start: this.start.bind(this) };
+    return {
+      start: this.start.bind(this),
+      setCopyToBackup: (arg) => (this.copyToBackup = arg),
+      isMounted: this.checkMediaIsMounted.bind(this)
+    };
 
   },
+
+  log(msg) { if (this.activeLog) console.log(msg) },
 
 
   checkMediaIsMounted() {
     try {
       execSync(`cat /etc/mtab | grep -c "${this.MOUNT_POINT}"`);
-      console.log("MOUNTED");
+      this.log("MOUNTED");
       this.mediaIsMount = true;
+      return true;
 
     } catch (e) {
-      console.log("NOT MOUNTED");
+      this.log("NOT MOUNTED");
       this.mediaIsMount = false;
+      return false;
     }
   },
 
@@ -70,12 +82,12 @@ const RealtimeBackup = {
     chokidar.watch(this.APP_DIR, {
       ignoreInitial: true
     }).on("all", (event, path) => {
-      console.log("WATCHER APP...");
-      console.log(event, path);
       if (this.copyToBackup) {
+        this.log("WATCHER APP...");
+        this.log(event, path);
         if (!this.firstCopyIsOk) {
           execSync(`cp -R -f ${this.APP_DIR} ${this.MOUNT_POINT}`);
-          console.log("FIRST COPY OK");
+          this.log("FIRST COPY OK");
           this.firstCopyIsOk = true;
         } else {
           switch (event) {
@@ -101,7 +113,7 @@ const RealtimeBackup = {
   sdWatcher() {
     this.checkMediaIsMounted();
     watch(this.DIR_POINT, { encoding: "utf-8", recursive: true }, (event, filename) => {
-      console.log("WATCHER SD");
+      this.log("WATCHER SD");
       if (filename === this.MEDIA_NAME)
         setTimeout(() => this.checkMediaIsMounted(), 2000);
     });
@@ -120,10 +132,17 @@ const RealtimeBackup = {
    *  sdCardName: string;
    *  partitionName:string;
    *  dirMount:string;
-   *  projectDir:string
+   *  projectDir:string;
+   * activeLog?:boolean
  *  }
- * )=>({start:()=>void})}} init
+ * )=>({
+ *  start:()=>void,
+ *  setCopyToBackup:(arg:boolean)=>void,
+ *  isMounted:()=>boolean
+ * })}} init
  */
 module.exports.RealTimeBackup = () => {
-  return { create: RealtimeBackup.init.bind(RealtimeBackup) };
+  return {
+    create: RealtimeBackup.init.bind(RealtimeBackup),
+  };
 }
