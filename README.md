@@ -53,3 +53,23 @@ Version of node.js required: 10.0.0
   ```javascript
     backup.isMounted();
   ```
+
+### subscribeIsMounted
+
+- Subscribe to the event isMounted
+- return: void
+  
+  ```javascript
+    backup.subscribeIsMounted((isMounted) => {
+        console.log(isMounted);
+    });
+  ```
+
+### unSubscribeIsMounted
+
+- Unsubscribe to the event isMounted
+- return: void
+  
+  ```javascript
+    backup.unSubscribeIsMounted();
+  ```

@@ -1,6 +1,7 @@
 const { execSync } = require("child_process");
 const { watch } = require("fs");
 const chokidar = require("chokidar");
+const EventEmitter = require('events');
 
 
 const RealtimeBackup = {
@@ -16,6 +17,8 @@ const RealtimeBackup = {
   copyToBackup: false,
   firstCopyIsOk: false,
   activeLog: false,
+  event: new EventEmitter(),
+  callBackListener: undefined,
 
   /**
    * init config for realtime backup
@@ -56,9 +59,24 @@ const RealtimeBackup = {
     return {
       start: this.start.bind(this),
       setCopyToBackup: (arg) => (this.copyToBackup = arg),
-      isMounted: this.checkMediaIsMounted.bind(this)
+      isMounted: this.checkMediaIsMounted.bind(this),
+      subscribe: this.subscribeIsMounted.bind(this),
+      unSubscribe: this.unSubscribeIsMounted.bind(this)
     };
 
+  },
+
+  subscribeIsMounted(callback) {
+    this.callBackListener = callback;
+    const event = this.event.on('isMounted', callback);
+  },
+
+  unSubscribeIsMounted() {
+    if (!this.callBackListener) {
+      throw new Error('Not listener to destroy...');
+    }
+    this.event.removeAllListeners('isMounted');
+    this.callBackListener = undefined;
   },
 
   log(msg) { if (this.activeLog) console.log(msg) },
@@ -69,11 +87,13 @@ const RealtimeBackup = {
       execSync(`cat /etc/mtab | grep -c "${this.MOUNT_POINT}"`);
       this.log("MOUNTED");
       this.mediaIsMount = true;
+      this.event.emit('isMounted', true);
       return true;
 
     } catch (e) {
       this.log("NOT MOUNTED");
       this.mediaIsMount = false;
+      this.event.emit('isMounted', false);
       return false;
     }
   },
@@ -83,7 +103,7 @@ const RealtimeBackup = {
     chokidar.watch(this.APP_DIR, {
       ignoreInitial: true
     }).on("all", (event, path) => {
-      if (this.copyToBackup) {
+      if (this.copyToBackup && this.mediaIsMount) {
         this.log("WATCHER APP...");
         this.log(event, path);
         if (!this.firstCopyIsOk) {
@@ -113,10 +133,11 @@ const RealtimeBackup = {
 
   sdWatcher() {
     this.checkMediaIsMounted();
-    watch(this.DIR_POINT, { encoding: "utf-8", recursive: true }, (event, filename) => {
+    watch(this.DIR_POINT, { recursive: true, encoding: 'utf8' }, (event, path) => {
       this.log("WATCHER SD");
-      if (filename === this.MEDIA_NAME)
+      if (path === this.MEDIA_NAME) {
         setTimeout(() => this.checkMediaIsMounted(), 2000);
+      }
     });
   },
 
@@ -139,7 +160,9 @@ const RealtimeBackup = {
  * )=>({
  *  start:()=>void,
  *  setCopyToBackup:(arg:boolean)=>void,
- *  isMounted:()=>boolean
+ *  isMounted:()=>boolean,
+ *  subscribe:(callback:(isMounted:boolean)=>void)=>void,
+ *  unSubscribe:()=>void
  * })}} init
  */
 module.exports.RealTimeBackup = () => {
