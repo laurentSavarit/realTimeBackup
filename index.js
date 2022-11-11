@@ -19,6 +19,7 @@ const RealtimeBackup = {
   activeLog: false,
   event: new EventEmitter(),
   callBackListener: undefined,
+  excludeFiles: [],
 
   /**
    * init config for realtime backup
@@ -27,7 +28,8 @@ const RealtimeBackup = {
    *  partitionName:string;
    *  dirMount:string;
    *  projectDir:string;
-   *  activeLog?:boolean
+   *  excludeFiles?:string[];
+   *  activeLog?:boolean;
    * }} realTimeBackupParams 
    */
   init(realTimeBackupParams) {
@@ -46,7 +48,11 @@ const RealtimeBackup = {
         || (realTimeBackupParams[key] && realTimeBackupParams[key].trim().length === 0)) throw new Error(`Expected ${key} argument!`);
     })
 
-    this.activeLog = realTimeBackupParams.activeLog
+    this.activeLog = realTimeBackupParams.activeLog;
+
+    if (Array.isArray(realTimeBackupParams.excludeFiles)) {
+      this.excludeFiles = realTimeBackupParams.excludeFiles;
+    }
 
     this.MEDIA_NAME = realTimeBackupParams.sdCardName;
     this.PARTITION_NAME = realTimeBackupParams.partitionName;
@@ -101,13 +107,23 @@ const RealtimeBackup = {
 
   appWatcher() {
     chokidar.watch(this.APP_DIR, {
-      ignoreInitial: true
+      ignoreInitial: true,
+      persistent: true,
+      awaitWriteFinish: {
+        pollInterval: 100,
+        stabilityThreshold: 2000
+      }
     }).on("all", (event, path) => {
+
+      if (this.excludeFiles.length && !!this.excludeFiles.find(e => path.includes(e))) {
+        return;
+      }
+
       if (this.copyToBackup && this.mediaIsMount) {
         this.log("WATCHER APP...");
         this.log(event, path);
         if (!this.firstCopyIsOk) {
-          execSync(`cp -R -f ${this.APP_DIR} ${this.MOUNT_POINT}`);
+          execSync(`cp -R -f "${this.APP_DIR}" "${this.MOUNT_POINT}"`);
           this.log("FIRST COPY OK");
           this.firstCopyIsOk = true;
         } else {
@@ -115,11 +131,11 @@ const RealtimeBackup = {
             case "add":
             case "addDir":
             case "change":
-              execSync(`cp -R -f ${path} ${path.replace(this.ORIGIN_PROJECT_DIR, this.MOUNT_POINT)}`);
+              execSync(`cp -R -f "${path}" "${path.replace(this.ORIGIN_PROJECT_DIR, this.MOUNT_POINT)}"`);
               break;
             case "unlink":
             case "unlinkDir":
-              execSync(`rm -R -f ${path.replace(this.ORIGIN_PROJECT_DIR, this.MOUNT_POINT)}`);
+              execSync(`rm -R -f "${path.replace(this.ORIGIN_PROJECT_DIR, this.MOUNT_POINT)}"`);
               break;
           }
         }
